@@ -1,0 +1,30 @@
+# Python caches and test artifacts
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+
+# Local environments and credentials
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+
+# Build outputs and machine-specific environments
+build/
+build-win/
+build-spec/
+dist/
+.wine*/
+models/
+
+# IDE and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
