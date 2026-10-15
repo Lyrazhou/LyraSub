@@ -74,6 +74,16 @@ def test_project_round_trip_preserves_anchor_and_manual_override(tmp_path: Path)
     assert loaded.draft.active_page == 3
 
 
+def test_wav_source_path_survives_project_round_trip(tmp_path: Path) -> None:
+    project = SubtitleProject(title="WAV 工程")
+    project.source.path = "D:/audio/对白.wav"
+
+    destination = save_project(project, tmp_path / "wav-project")
+    loaded = load_project(destination)
+
+    assert loaded.source.path == "D:/audio/对白.wav"
+
+
 def test_legacy_v1_project_loads_without_draft(tmp_path: Path) -> None:
     legacy = {
         "schema_version": 1,

@@ -34,7 +34,7 @@ def test_main_window_builds_at_design_size() -> None:
     assert window.width() == 1600
     assert window.height() == 900
     assert "弦字幕 Plus（LyraSub Plus）" in window.windowTitle()
-    assert "v260822A" in window.windowTitle()
+    assert "v261015A" in window.windowTitle()
     assert window.nav.count() == 6
     assert window.pages.count() == 6
     assert "导入媒体" in window.nav.item(0).text()
@@ -376,6 +376,31 @@ def test_mp4_preview_entry_and_subtitle_sync(tmp_path: Path) -> None:
     assert dialog.subtitle_label.text() == "视频字幕"
     window._close_video_preview()
     assert window.video_preview_dialog is None
+    window.close()
+
+
+def test_wav_import_updates_project_source_and_media_filter(tmp_path: Path) -> None:
+    app = QApplication.instance() or QApplication([])
+    media = tmp_path / "voice.wav"
+    media.write_bytes(b"RIFF\x00\x00\x00\x00WAVE")
+    window = MainWindow()
+    selected: dict[str, str] = {}
+
+    def choose_media(title: str, file_filter: str) -> str:
+        selected["title"] = title
+        selected["filter"] = file_filter
+        return str(media)
+
+    window._open_file_dialog = choose_media
+    window.import_audio()
+    app.processEvents()
+
+    assert ".wav" in selected["filter"]
+    assert window.project.source.path == str(media)
+    assert window.audio_path_label.text() == str(media)
+    assert "WAV 音频" in window.statusBar().currentMessage()
+    assert ".wav" in SUPPORTED_MEDIA_SUFFIXES
+    window._clear_dirty_marker()
     window.close()
 
 

@@ -10,8 +10,8 @@ APP_DISPLAY_NAME = f"{APP_NAME_ZH}（{APP_NAME_EN}）"
 APP_ID = "com.lyrastudio.lyrasub"
 
 # The release process freezes this value into the build manifest.
-# v260822A adds shared file-dialog directory memory and stable target-language selection.
-VERSION = "v260822A"
+# v261015A adds end-to-end WAV audio import and transcription support.
+VERSION = "v261015A"
 VERSION_FORMAT = "vYYMMDD + optional A–Z / AA… same-day revision"
 
 ABOUT_PRODUCER = "本工具由天琴工作室（Lyra Studio）出品 · 海舟（Lyrazhou）制作"

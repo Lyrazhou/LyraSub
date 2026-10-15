@@ -50,10 +50,10 @@ cat > "$ROOT/dist/LyraSub/release-manifest.json" <<'JSON'
 {
   "product": "LyraSub",
   "display_name": "弦字幕 Plus（LyraSub Plus）",
-  "version": "v260822A",
-  "build_revision": 2,
+  "version": "v261015A",
+  "build_revision": 1,
   "baseline": false,
-  "release_note": "LyraSub Plus：文件对话框目录记忆与稳定的翻译目标语言选择优化。",
+  "release_note": "LyraSub Plus：新增 WAV 音频导入、工程保存与本地识别支持。",
   "update_channel": "stable",
   "models_location": "%LOCALAPPDATA%\\LyraSub\\models"
 }

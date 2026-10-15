@@ -755,7 +755,7 @@ class MainWindow(QMainWindow):
         self.resize(1600, 900)
         self.setMinimumSize(1100, 680)
         self.setStatusBar(QStatusBar())
-        self.statusBar().showMessage("就绪。导入 MP3 或 MP4 媒体后开始制作字幕。")
+        self.statusBar().showMessage("就绪。导入 MP3、WAV 或 MP4 媒体后开始制作字幕。")
 
         root = QWidget()
         root_layout = QVBoxLayout(root)
@@ -898,7 +898,7 @@ class MainWindow(QMainWindow):
     def _build_import_page(self) -> QWidget:
         page, layout = self._page_shell(
             "素材准备",
-            "导入 MP3 或 MP4 媒体",
+            "导入 MP3、WAV 或 MP4 媒体",
             "MP4 会直接读取内嵌音轨交给本地识别，不会额外生成 MP3 副本；项目文件只记录原始媒体路径和字幕数据。",
         )
         card = QGroupBox("源媒体")
@@ -906,7 +906,7 @@ class MainWindow(QMainWindow):
         self.audio_path_label = QLabel("尚未选择媒体文件")
         self.audio_path_label.setWordWrap(True)
         self.audio_path_label.setObjectName("filePath")
-        choose = QPushButton("选择 MP3 或 MP4 文件")
+        choose = QPushButton("选择 MP3、WAV 或 MP4 文件")
         choose.setObjectName("primaryButton")
         choose.clicked.connect(self.import_audio)
         card_layout.addWidget(QLabel("文件"), 0, 0)
@@ -1082,7 +1082,7 @@ class MainWindow(QMainWindow):
         page, layout = self._page_shell(
             "可选增强",
             "清洗口语化文本",
-            "启用后仅向您配置的模型服务发送当前文本，不会上传 MP3 音频。每项修改均可拒绝或手工覆写。",
+            "启用后仅向您配置的模型服务发送当前文本，不会上传 MP3/WAV 音频或 MP4 视频。每项修改均可拒绝或手工覆写。",
         )
         actions = QHBoxLayout()
         self.cleanup_enabled = QCheckBox("使用 LLM 清洗")
@@ -1305,12 +1305,12 @@ class MainWindow(QMainWindow):
         preview_layout.setSpacing(9)
         preview_header = QHBoxLayout()
         preview_header.addWidget(QLabel("媒体字幕预览", objectName="subheading"))
-        self.preview_status_label = QLabel("导入 MP3 或 MP4 后可预览")
+        self.preview_status_label = QLabel("导入 MP3、WAV 或 MP4 后可预览")
         self.preview_status_label.setObjectName("mutedLabel")
         self.preview_video_select_button = QPushButton("选择预览视频…")
         self.preview_video_select_button.setEnabled(False)
         self.preview_video_select_button.setToolTip(
-            "识别源为 MP3 时，可在此选择对应 MP4 作为校对画面；不会重新识别或改变锚点。"
+            "识别源为 MP3 或 WAV 时，可在此选择对应 MP4 作为校对画面；不会重新识别或改变锚点。"
         )
         self.preview_video_select_button.clicked.connect(self.select_preview_video)
         self.preview_video_button = QPushButton("打开视频预览")
@@ -1551,7 +1551,9 @@ class MainWindow(QMainWindow):
         path = self._open_file_dialog("添加章节 SRT", "SRT 字幕 (*.srt)")
         if not path:
             return
-        audio_path = self._open_file_dialog("可选：选择对应章节 MP3", "MP3 音频 (*.mp3)")
+        audio_path = self._open_file_dialog(
+            "可选：选择对应章节音频", "音频文件 (*.mp3 *.wav);;MP3 音频 (*.mp3);;WAV 音频 (*.wav)"
+        )
         try:
             self._add_merge_segment(segment_from_srt(path, audio_path or None))
         except (OSError, ValueError) as exc:
@@ -1561,7 +1563,9 @@ class MainWindow(QMainWindow):
         path = self._open_file_dialog("添加章节弦字幕工程", "弦字幕项目 (*.lyrasub)")
         if not path:
             return
-        audio_path = self._open_file_dialog("可选：选择对应章节 MP3", "MP3 音频 (*.mp3)")
+        audio_path = self._open_file_dialog(
+            "可选：选择对应章节音频", "音频文件 (*.mp3 *.wav);;MP3 音频 (*.mp3);;WAV 音频 (*.wav)"
+        )
         try:
             self._add_merge_segment(segment_from_lyrasub(path, audio_path or None))
         except (OSError, ValueError) as exc:
@@ -2407,7 +2411,7 @@ class MainWindow(QMainWindow):
             ("打开", QKeySequence.StandardKey.Open, self.open_project),
             ("保存", QKeySequence.StandardKey.Save, self.save_project),
             ("另存为", QKeySequence("Ctrl+Shift+S"), self.save_project_as),
-            ("导入 MP3 / MP4", None, self.import_audio),
+            ("导入 MP3 / WAV / MP4", None, self.import_audio),
             ("导入 SRT", None, self.import_srt),
             ("导出 SRT", None, self.export_current_srt),
             ("模型管理", None, self.show_model_manager),
@@ -2775,8 +2779,8 @@ class MainWindow(QMainWindow):
 
     def import_audio(self) -> None:
         path = self._open_file_dialog(
-            "选择 MP3 音频或 MP4 视频",
-            "支持的媒体 (*.mp3 *.mp4);;MP3 音频 (*.mp3);;MP4 视频 (*.mp4)",
+            "选择 MP3/WAV 音频或 MP4 视频",
+            "支持的媒体 (*.mp3 *.wav *.mp4);;MP3 音频 (*.mp3);;WAV 音频 (*.wav);;MP4 视频 (*.mp4)",
         )
         if not path:
             return
@@ -2789,9 +2793,11 @@ class MainWindow(QMainWindow):
         self.audio_path_label.setText(path)
         self.inspector_file.setText(Path(path).name)
         self._sync_preview_source()
-        media_kind = (
-            "MP4 视频（将直接识别内嵌音轨）" if Path(path).suffix.lower() == ".mp4" else "MP3 音频"
-        )
+        suffix = Path(path).suffix.lower()
+        media_kind = {
+            ".mp4": "MP4 视频（将直接识别内嵌音轨）",
+            ".wav": "WAV 音频",
+        }.get(suffix, "MP3 音频")
         self.statusBar().showMessage(f"已导入{media_kind}。请前往“文字识别”选择模型和设备。", 7000)
         self.nav.setCurrentRow(1)
         self._mark_dirty()
@@ -3089,7 +3095,9 @@ class MainWindow(QMainWindow):
 
     def start_transcription(self) -> None:
         if not self.project.source.path:
-            QMessageBox.information(self, APP_DISPLAY_NAME, "请先导入 MP3 音频文件。")
+            QMessageBox.information(
+                self, APP_DISPLAY_NAME, "请先导入 MP3/WAV 音频或 MP4 视频文件。"
+            )
             self.nav.setCurrentRow(0)
             return
         language = LanguageMode(str(self.language_combo.currentData()))
@@ -3734,7 +3742,9 @@ class MainWindow(QMainWindow):
 
     def select_preview_video(self) -> None:
         if not self.project.source.path.strip():
-            QMessageBox.information(self, APP_DISPLAY_NAME, "请先导入用于识别的 MP3 或 MP4 媒体。")
+            QMessageBox.information(
+                self, APP_DISPLAY_NAME, "请先导入用于识别的 MP3、WAV 或 MP4 媒体。"
+            )
             return
         path = self._open_file_dialog("选择高清视频作为校对预览", "MP4 视频 (*.mp4)")
         if not path:
@@ -3780,7 +3790,7 @@ class MainWindow(QMainWindow):
             self.preview_timeline.setRange(0, 0)
             self.preview_position_label.setText("00:00:00.000")
             self.preview_duration_label.setText("00:00:00.000")
-            self.preview_status_label.setText("导入 MP3 或 MP4 后可预览")
+            self.preview_status_label.setText("导入 MP3、WAV 或 MP4 后可预览")
             self.preview_subtitle_label.setText("当前字幕将在这里叠加显示")
             return
         if binding_signature == self._preview_binding_signature:
@@ -3843,7 +3853,11 @@ class MainWindow(QMainWindow):
             )
             media_note = f"外部 MP4 预览视频已加载（当前音频：{audio_note}）"
         else:
-            media_note = "MP4 视频音轨已加载" if self._is_video_source() else "MP3 音频已加载"
+            media_note = (
+                "MP4 视频音轨已加载"
+                if self._is_video_source()
+                else f"{Path(self._preview_media_path()).suffix[1:].upper()} 音频已加载"
+            )
         self.preview_status_label.setText(f"{media_note}：{source_path.name}")
         self.preview_subtitle_label.setText("点击播放，或拖动时间轴预览字幕。")
 
@@ -3987,7 +4001,9 @@ class MainWindow(QMainWindow):
 
     def _toggle_preview_playback(self) -> None:
         if not self._preview_loaded_path:
-            QMessageBox.information(self, APP_DISPLAY_NAME, "请先导入可用的 MP3 或 MP4 媒体文件。")
+            QMessageBox.information(
+                self, APP_DISPLAY_NAME, "请先导入可用的 MP3、WAV 或 MP4 媒体文件。"
+            )
             return
         if self.audio_player.playbackState() == QMediaPlayer.PlaybackState.PlayingState:
             self.audio_player.pause()

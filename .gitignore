@@ -28,3 +28,6 @@ models/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Windows build bootstrap cache
+.build-cache/

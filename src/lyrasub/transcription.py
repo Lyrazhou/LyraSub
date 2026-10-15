@@ -1,4 +1,4 @@
-"""Local MP3 transcription task with word/character anchor creation."""
+"""Local audio/video transcription with word/character anchor creation."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ from .models import Anchor, AnchorState, LanguageMode, ProcessingDevice
 from .tasks import TaskCancelledError
 
 ProgressCallback = Callable[[str, int | None], None]
-SUPPORTED_MEDIA_SUFFIXES = frozenset({".mp3", ".mp4"})
+SUPPORTED_MEDIA_SUFFIXES = frozenset({".mp3", ".mp4", ".wav"})
 
 
 @dataclass(slots=True)
@@ -140,7 +140,7 @@ class LocalTranscriber:
         if not path.is_file():
             raise FileNotFoundError(f"找不到音频文件：{path}")
         if path.suffix.lower() not in SUPPORTED_MEDIA_SUFFIXES:
-            raise ValueError("仅支持导入 MP3 音频或带音轨的 MP4 视频文件。")
+            raise ValueError("仅支持导入 MP3、WAV 音频或带音轨的 MP4 视频文件。")
 
         def ensure_not_cancelled() -> None:
             if cancel_event and cancel_event.is_set():
