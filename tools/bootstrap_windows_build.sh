@@ -30,6 +30,7 @@ wine "$WIN_PYTHON" -m pip install \
   "cryptography>=43,<46" \
   "platformdirs>=4.3,<5.0" \
   "requests>=2.32,<3.0" \
+  "opencc-python-reimplemented>=0.1.7,<0.2.0" \
   "pyinstaller>=6.12,<7.0" \
   "numpy==1.26.4"
 

@@ -15,11 +15,11 @@
 
 ## 本包明确不包含
 
-已编译 EXE、`dist/`、`build-win/`、`build-spec/`、旧发布文件、Wine 前缀、Python 缓存、测试缓存、本地识别模型和任何真实 API 密钥均不属于源码归档。完整安装程序请使用与本包一同交付的 `LyraSub-Plus-setup.exe`。识别模型由用户在软件启动后按需下载。
+已编译 EXE、`dist/`、`build-win/`、`build-spec/`、旧发布文件、Wine 前缀、Python 缓存、测试缓存、本地识别模型和任何真实 API 密钥均不属于源码归档。完整安装程序请从 v261015A GitHub Release 下载 `LyraSub-Plus-v261015A-setup.exe`。识别模型由用户在软件启动后按需下载。
 
 ## 质量验证
 
-v261015A 在既有 MP3/MP4 工作流上新增 WAV 导入、直接本地识别与工程路径持久化。完整回归测试与 Windows 安装包验证结果以本次发布记录为准。
+v261015A Build 2 在 WAV 音频导入、工程保存与本地识别基础上，修复 Windows 安装包遗漏 OpenCC 模块及简繁转换词典的问题；冻结包构建会执行简繁转换自测。
 
 ```bash
 ruff format src tests

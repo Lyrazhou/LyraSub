@@ -23,6 +23,7 @@ wine "$WIN_PYTHON" -m PyInstaller \
   --distpath "$WIN_DIST" \
   --workpath "$WIN_BUILD" \
   --specpath "$WIN_SPEC" \
+  --collect-all opencc \
   --exclude-module faster_whisper \
   --exclude-module ctranslate2 \
   --exclude-module onnxruntime \
@@ -40,20 +41,28 @@ RUNTIME_TARGET="$ROOT/dist/LyraSub/_internal"
 for package in \
   faster_whisper ctranslate2 onnxruntime av tokenizers huggingface_hub \
   hf_xet filelock fsspec tqdm httpx httpcore anyio h11 click \
-  numpy yaml typing_extensions platformdirs packaging numpy.libs av.libs; do
+  numpy yaml typing_extensions platformdirs packaging opencc numpy.libs av.libs; do
   if [[ -e "$RUNTIME_SITE/$package" ]]; then
     cp -a "$RUNTIME_SITE/$package" "$RUNTIME_TARGET/"
   fi
 done
+
+# Fail the build if OpenCC is missing from the frozen analysis or from the
+# runtime package tree. Validate the actual copied bundle, not only site-packages.
+if grep -q "missing module named opencc" "$ROOT/build-win/LyraSub/warn-LyraSub.txt"; then
+  echo "ERROR: PyInstaller reports the OpenCC module as missing." >&2
+  exit 1
+fi
+wine "$WIN_PYTHON" -c "import sys; sys.path.insert(0, r'${WIN_DIST}\\LyraSub\\_internal'); from opencc import OpenCC; result = OpenCC('t2s').convert('繁體中文測試'); assert result == '繁体中文测试', result; print('Bundled OpenCC verification passed:', result)"
 
 cat > "$ROOT/dist/LyraSub/release-manifest.json" <<'JSON'
 {
   "product": "LyraSub",
   "display_name": "弦字幕 Plus（LyraSub Plus）",
   "version": "v261015A",
-  "build_revision": 1,
+  "build_revision": 2,
   "baseline": false,
-  "release_note": "LyraSub Plus：新增 WAV 音频导入、工程保存与本地识别支持。",
+  "release_note": "LyraSub Plus：新增 WAV 音频导入与本地识别支持；修复 Windows 安装包遗漏 OpenCC 简繁转换组件。",
   "update_channel": "stable",
   "models_location": "%LOCALAPPDATA%\\LyraSub\\models"
 }

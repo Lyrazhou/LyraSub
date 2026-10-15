@@ -6,7 +6,7 @@ SetCompressor /SOLID lzma
 !include "LogicLib.nsh"
 
 !define PRODUCT_NAME "弦字幕 Plus（LyraSub Plus）"
-!define PRODUCT_VERSION "v261015A"
+!define PRODUCT_VERSION "v261015A (Build 2)"
 !define PRODUCT_PUBLISHER "天琴工作室（Lyra Studio）"
 !define PRODUCT_EXE "LyraSub.exe"
 
