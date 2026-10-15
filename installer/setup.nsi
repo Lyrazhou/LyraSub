@@ -11,7 +11,7 @@ SetCompressor /SOLID lzma
 !define PRODUCT_EXE "LyraSub.exe"
 
 Name "${PRODUCT_NAME} ${PRODUCT_VERSION}"
-OutFile "..\release\LyraSub-Plus-setup.exe"
+OutFile "..\release\261015A_LyraSub-Plus-setup.exe"
 InstallDir "$LOCALAPPDATA\LyraSub"
 InstallDirRegKey HKCU "Software\LyraStudio\LyraSub" "InstallDir"
 ShowInstDetails show
