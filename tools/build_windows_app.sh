@@ -11,6 +11,7 @@ WIN_SPEC="${WIN_ROOT}\\build-spec"
 
 export WINEPREFIX
 export WINEDEBUG=-all
+wine "$WIN_PYTHON" -c "import av,wave,tempfile,pathlib; from faster_whisper.audio import decode_audio; assert av.__version__.split('.')[0] == '18', f'Unsupported PyAV version: {av.__version__}'; p=pathlib.Path(tempfile.gettempdir())/'lyrasub_build_probe.wav'; w=wave.open(str(p),'wb'); w.setnchannels(1); w.setsampwidth(2); w.setframerate(16000); w.writeframes(b'\\0\\0'*1600); w.close(); samples=decode_audio(str(p),sampling_rate=16000); assert len(samples)==1600, len(samples); print('Build environment faster-whisper/PyAV verification passed:', av.__version__, len(samples))"
 rm -rf "$ROOT/dist" "$ROOT/build-win" "$ROOT/build-spec"
 mkdir -p "$ROOT/dist"
 
@@ -54,15 +55,16 @@ if grep -q "missing module named opencc" "$ROOT/build-win/LyraSub/warn-LyraSub.t
   exit 1
 fi
 wine "$WIN_PYTHON" -c "import sys; sys.path.insert(0, r'${WIN_DIST}\\LyraSub\\_internal'); from opencc import OpenCC; result = OpenCC('t2s').convert('繁體中文測試'); assert result == '繁体中文测试', result; print('Bundled OpenCC verification passed:', result)"
+wine "$WIN_PYTHON" -c "import sys; sys.path.insert(0, r'${WIN_DIST}\\LyraSub\\_internal'); import wave,tempfile,pathlib,av; from faster_whisper.audio import decode_audio; p=pathlib.Path(tempfile.gettempdir())/'lyrasub_build_probe.wav'; w=wave.open(str(p),'wb'); w.setnchannels(1); w.setsampwidth(2); w.setframerate(16000); w.writeframes(b'\\0\\0'*1600); w.close(); samples=decode_audio(str(p),sampling_rate=16000); assert len(samples)==1600, len(samples); print('Bundled faster-whisper/PyAV decode verification passed:', av.__version__, len(samples))"
 
 cat > "$ROOT/dist/LyraSub/release-manifest.json" <<'JSON'
 {
   "product": "LyraSub",
   "display_name": "弦字幕 Plus（LyraSub Plus）",
   "version": "v261015A",
-  "build_revision": 2,
+  "build_revision": 3,
   "baseline": false,
-  "release_note": "LyraSub Plus：新增 WAV 音频导入与本地识别支持；修复 Windows 安装包遗漏 OpenCC 简繁转换组件。",
+  "release_note": "LyraSub Plus：新增 WAV 音频导入与本地识别支持；修复 OpenCC 打包遗漏及 faster-whisper/PyAV 音频解码依赖冲突（Build 3）。",
   "update_channel": "stable",
   "models_location": "%LOCALAPPDATA%\\LyraSub\\models"
 }

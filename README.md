@@ -19,7 +19,7 @@
 
 ## 质量验证
 
-v261015A Build 2 在 WAV 音频导入、工程保存与本地识别基础上，修复 Windows 安装包遗漏 OpenCC 模块及简繁转换词典的问题；冻结包构建会执行简繁转换自测。
+v261015A Build 3 修复 Windows 安装包遗漏 OpenCC 及 PyAV 与 faster-whisper 音频解码 API 不兼容的问题，并加入真实解码回归测试；同时包含 WAV 音频导入、工程保存与本地识别。
 
 ```bash
 ruff format src tests

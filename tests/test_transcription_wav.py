@@ -1,3 +1,4 @@
+import wave
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -33,6 +34,21 @@ class StubModels:
 def test_wav_is_a_supported_media_suffix() -> None:
     assert ".wav" in SUPPORTED_MEDIA_SUFFIXES
     assert {".mp3", ".mp4", ".wav"} <= SUPPORTED_MEDIA_SUFFIXES
+
+
+def test_faster_whisper_audio_decoder_accepts_metadata_errors(tmp_path: Path) -> None:
+    from faster_whisper.audio import decode_audio
+
+    wav = tmp_path / "decoder-probe.wav"
+    with wave.open(str(wav), "wb") as audio:
+        audio.setnchannels(1)
+        audio.setsampwidth(2)
+        audio.setframerate(16_000)
+        audio.writeframes(b"\x00\x00" * 1600)
+
+    samples = decode_audio(str(wav), sampling_rate=16_000)
+
+    assert len(samples) == 1600
 
 
 def test_local_transcriber_passes_wav_path_to_asr(tmp_path: Path) -> None:

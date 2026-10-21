@@ -27,6 +27,7 @@ wine "$WIN_PYTHON" -m pip install --upgrade pip setuptools wheel
 wine "$WIN_PYTHON" -m pip install \
   "PySide6>=6.8,<6.10" \
   "faster-whisper>=1.1,<2.0" \
+  "av>=18,<19" \
   "cryptography>=43,<46" \
   "platformdirs>=4.3,<5.0" \
   "requests>=2.32,<3.0" \
