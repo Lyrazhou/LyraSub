@@ -61,10 +61,10 @@ cat > "$ROOT/dist/LyraSub/release-manifest.json" <<'JSON'
 {
   "product": "LyraSub",
   "display_name": "弦字幕 Plus（LyraSub Plus）",
-  "version": "v261015A",
-  "build_revision": 3,
+  "version": "v261121A",
+  "build_revision": 1,
   "baseline": false,
-  "release_note": "LyraSub Plus：新增 WAV 音频导入与本地识别支持；修复 OpenCC 打包遗漏及 faster-whisper/PyAV 音频解码依赖冲突（Build 3）。",
+  "release_note": "LyraSub Plus：校对导出时间输入统一为 HH:MM:SS.mmm，增加相邻字幕 1 毫秒边界快捷设置及越界保护。",
   "update_channel": "stable",
   "models_location": "%LOCALAPPDATA%\\LyraSub\\models"
 }

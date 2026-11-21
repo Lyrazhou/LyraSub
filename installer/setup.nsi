@@ -6,12 +6,12 @@ SetCompressor /SOLID lzma
 !include "LogicLib.nsh"
 
 !define PRODUCT_NAME "弦字幕 Plus（LyraSub Plus）"
-!define PRODUCT_VERSION "v261015A (Build 3)"
+!define PRODUCT_VERSION "v261121A (Build 1)"
 !define PRODUCT_PUBLISHER "天琴工作室（Lyra Studio）"
 !define PRODUCT_EXE "LyraSub.exe"
 
 Name "${PRODUCT_NAME} ${PRODUCT_VERSION}"
-OutFile "..\release\261015A_LyraSub-Plus-setup.exe"
+OutFile "..\release\261121A_LyraSub-Plus-setup.exe"
 InstallDir "$LOCALAPPDATA\LyraSub"
 InstallDirRegKey HKCU "Software\LyraStudio\LyraSub" "InstallDir"
 ShowInstDetails show
@@ -26,6 +26,10 @@ ShowUninstDetails show
 !insertmacro MUI_LANGUAGE "SimpChinese"
 
 Section "安装弦字幕 Plus（LyraSub Plus）" SEC_MAIN
+  ; Models and user data may share the install root; replace app-owned files only.
+  RMDir /r "$INSTDIR\_internal"
+  Delete "$INSTDIR\${PRODUCT_EXE}"
+  Delete "$INSTDIR\release-manifest.json"
   SetOutPath "$INSTDIR"
   File /r "..\dist\LyraSub\*.*"
 
@@ -58,7 +62,10 @@ Section "Uninstall"
   Delete "$DESKTOP\弦字幕（LyraSub）.lnk"
   DeleteRegKey HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\LyraSub"
   DeleteRegKey HKCU "Software\LyraStudio\LyraSub"
-  RMDir /r "$INSTDIR"
-  ; Local ASR and alignment models live in the user's application-data directory.
-  ; They are deliberately retained on uninstall so a reinstall/patch does not re-download them.
+  RMDir /r "$INSTDIR\_internal"
+  Delete "$INSTDIR\${PRODUCT_EXE}"
+  Delete "$INSTDIR\release-manifest.json"
+  Delete "$INSTDIR\Uninstall.exe"
+  ; Preserve any user files under the shared install/data root.
+  RMDir "$INSTDIR"
 SectionEnd

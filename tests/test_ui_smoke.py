@@ -34,7 +34,7 @@ def test_main_window_builds_at_design_size() -> None:
     assert window.width() == 1600
     assert window.height() == 900
     assert "弦字幕 Plus（LyraSub Plus）" in window.windowTitle()
-    assert "v261015A" in window.windowTitle()
+    assert "v261121A" in window.windowTitle()
     assert window.nav.count() == 6
     assert window.pages.count() == 6
     assert "导入媒体" in window.nav.item(0).text()
@@ -480,6 +480,112 @@ def test_manual_timing_fence_and_insertion_gap_detection() -> None:
     assert window._insertion_index_at_position(2_500) is None
     assert window._insertion_index_at_position(5_500) == 3
     assert window._insertion_timing_fence(1)[:2] == (1_000, 2_000)
+    app.processEvents()
+    window.close()
+
+
+def test_timecode_entry_parses_and_formats_millisecond_precision() -> None:
+    assert MainWindow._parse_timecode_milliseconds("01:02:03.004") == 3_723_004
+    assert MainWindow._parse_timecode_milliseconds("00:00:01.5") == 1_500
+    assert MainWindow._parse_timecode_milliseconds("00:00:01") == 1_000
+    assert MainWindow._parse_timecode_milliseconds("00:60:01.000") is None
+    assert MainWindow._parse_timecode_milliseconds("1:2:03.000") is None
+
+    app = QApplication.instance() or QApplication([])
+    window = MainWindow()
+    assert window._format_preview_time(3_723_004) == "01:02:03.004"
+    app.processEvents()
+    window.close()
+
+
+def test_adjacent_time_buttons_apply_exact_millisecond_boundaries(monkeypatch) -> None:
+    from PySide6.QtWidgets import QDialog, QLineEdit, QPushButton
+
+    app = QApplication.instance() or QApplication([])
+    window = MainWindow()
+    window.project.entries = [
+        SubtitleEntry(text="第一", start_ms=1_000, end_ms=2_000),
+        SubtitleEntry(text="第二", start_ms=3_000, end_ms=4_000),
+        SubtitleEntry(text="第三", start_ms=5_000, end_ms=6_000),
+    ]
+    dialogs = []
+
+    def reject_dialog(dialog):
+        dialogs.append(dialog)
+        return QDialog.DialogCode.Rejected
+
+    monkeypatch.setattr(QDialog, "exec", reject_dialog)
+    window._edit_entry_timing_dialog(1)
+    dialog = dialogs[-1]
+    start_edit = dialog.findChild(QLineEdit, "startTimeEdit")
+    end_edit = dialog.findChild(QLineEdit, "endTimeEdit")
+    previous_button = dialog.findChild(QPushButton, "previousEndTimeButton")
+    next_button = dialog.findChild(QPushButton, "nextStartTimeButton")
+    assert start_edit is not None and end_edit is not None
+    assert previous_button is not None and previous_button.isEnabled()
+    assert next_button is not None and next_button.isEnabled()
+
+    assert window._apply_adjacent_timing_boundary(
+        1, set_start=True, start_edit=start_edit, end_edit=end_edit
+    )
+    assert start_edit.text() == "00:00:02.001"
+    assert window._apply_adjacent_timing_boundary(
+        1, set_start=False, start_edit=start_edit, end_edit=end_edit
+    )
+    assert end_edit.text() == "00:00:04.999"
+
+    window._edit_entry_timing_dialog(0)
+    first_dialog = dialogs[-1]
+    first_previous = first_dialog.findChild(QPushButton, "previousEndTimeButton")
+    first_next = first_dialog.findChild(QPushButton, "nextStartTimeButton")
+    assert first_previous is not None and not first_previous.isEnabled()
+    assert first_next is not None and first_next.isEnabled()
+
+    window._edit_entry_timing_dialog(2)
+    last_dialog = dialogs[-1]
+    last_previous = last_dialog.findChild(QPushButton, "previousEndTimeButton")
+    last_next = last_dialog.findChild(QPushButton, "nextStartTimeButton")
+    assert last_previous is not None and last_previous.isEnabled()
+    assert last_next is not None and not last_next.isEnabled()
+    app.processEvents()
+    window.close()
+
+
+def test_adjacent_time_button_refuses_invalid_interval_without_changing_other_end(
+    monkeypatch,
+) -> None:
+    from PySide6.QtWidgets import QLineEdit, QMessageBox
+
+    app = QApplication.instance() or QApplication([])
+    window = MainWindow()
+    window.project.entries = [
+        SubtitleEntry(text="前", start_ms=0, end_ms=2_499),
+        SubtitleEntry(text="当前", start_ms=1_500, end_ms=2_500),
+        SubtitleEntry(text="后", start_ms=3_000, end_ms=4_000),
+    ]
+    warnings: list[str] = []
+    monkeypatch.setattr(
+        QMessageBox,
+        "warning",
+        lambda _parent, _title, text: warnings.append(str(text)),
+    )
+    start_edit = QLineEdit("00:00:02.500")
+    end_edit = QLineEdit("00:00:02.500")
+
+    assert not window._apply_adjacent_timing_boundary(
+        1, set_start=True, start_edit=start_edit, end_edit=end_edit
+    )
+    assert start_edit.text() == "00:00:02.500"
+    assert end_edit.text() == "00:00:02.500"
+    assert warnings and "结束时间必须晚于开始时间" in warnings[-1]
+
+    start_edit.setText("00:00:03.000")
+    end_edit.setText("00:00:03.500")
+    assert not window._apply_adjacent_timing_boundary(
+        1, set_start=False, start_edit=start_edit, end_edit=end_edit
+    )
+    assert end_edit.text() == "00:00:03.500"
+    assert "结束时间必须晚于开始时间" in warnings[-1]
     app.processEvents()
     window.close()
 

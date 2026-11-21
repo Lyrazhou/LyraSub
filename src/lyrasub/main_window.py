@@ -2155,11 +2155,17 @@ class MainWindow(QMainWindow):
         if end_ms <= start_ms:
             return "结束时间必须晚于开始时间，字幕需要保留正时长。"
         if start_ms < lower:
-            return f"开始时间不得早于上一条字幕的结束时间（{previous_end} ms）。"
+            return (
+                "开始时间不得早于上一条字幕的结束时间 "
+                f"({MainWindow._format_preview_time(previous_end)})."
+            )
         if upper is not None and end_ms > upper:
             if next_start is not None and upper == next_start:
-                return f"结束时间不得晚于下一条字幕的开始时间（{next_start} ms）。"
-            return f"结束时间不得晚于音频总时长（{upper} ms）。"
+                return (
+                    "结束时间不得晚于下一条字幕的开始时间 "
+                    f"({MainWindow._format_preview_time(next_start)})."
+                )
+            return f"结束时间不得晚于音频总时长 ({MainWindow._format_preview_time(upper)})."
         return None
 
     def _validate_entry_timing(self, row: int, start_ms: int, end_ms: int) -> str | None:
@@ -2180,8 +2186,58 @@ class MainWindow(QMainWindow):
         self._refresh_all()
         self._mark_dirty()
         self.statusBar().showMessage(
-            f"已保存第 {row + 1} 条手工时间：{start_ms}–{end_ms} ms。", 6000
+            "已保存第 "
+            f"{row + 1} 条手工时间：{self._format_preview_time(start_ms)}–"
+            f"{self._format_preview_time(end_ms)}。",
+            6000,
         )
+        return True
+
+    @staticmethod
+    def _parse_timecode_milliseconds(value: str) -> int | None:
+        """Parse HH:MM:SS[.mmm] without restricting hours to a 24-hour clock."""
+        match = re.fullmatch(r"\s*(\d+):(\d{2}):(\d{2})(?:\.(\d{1,3}))?\s*", value)
+        if not match:
+            return None
+        hours, minutes, seconds = (int(match.group(index)) for index in (1, 2, 3))
+        if minutes > 59 or seconds > 59:
+            return None
+        fraction = (match.group(4) or "").ljust(3, "0")
+        milliseconds = int(fraction) if fraction else 0
+        return ((hours * 60 + minutes) * 60 + seconds) * 1000 + milliseconds
+
+    def _apply_adjacent_timing_boundary(
+        self, row: int, *, set_start: bool, start_edit: QLineEdit, end_edit: QLineEdit
+    ) -> bool:
+        if row < 0 or row >= len(self.project.entries):
+            return False
+        neighbor_row = row - 1 if set_start else row + 1
+        if neighbor_row < 0 or neighbor_row >= len(self.project.entries):
+            return False
+        neighbor = self.project.entries[neighbor_row]
+        boundary_ms = neighbor.effective_end_ms if set_start else neighbor.effective_start_ms
+        if boundary_ms is None:
+            QMessageBox.warning(self, "时间围栏", "相邻字幕缺少有效时间，无法使用快捷按钮。")
+            return False
+
+        start_ms = self._parse_timecode_milliseconds(start_edit.text())
+        end_ms = self._parse_timecode_milliseconds(end_edit.text())
+        if start_ms is None or end_ms is None:
+            QMessageBox.warning(self, "时间格式错误", "请先将起止时间输入为 时:分:秒.毫秒 格式。")
+            return False
+
+        if set_start:
+            candidate_ms = boundary_ms + 1
+            candidate_start, candidate_end = candidate_ms, end_ms
+        else:
+            candidate_ms = boundary_ms - 1
+            candidate_start, candidate_end = start_ms, candidate_ms
+        error = self._validate_entry_timing(row, candidate_start, candidate_end)
+        if error:
+            QMessageBox.warning(self, "时间围栏", f"快捷设置未应用：{error}")
+            return False
+        target = start_edit if set_start else end_edit
+        target.setText(self._format_preview_time(candidate_ms))
         return True
 
     def _edit_entry_timing_dialog(self, row: int) -> None:
@@ -2204,12 +2260,13 @@ class MainWindow(QMainWindow):
             return
         dialog = QDialog(self)
         dialog.setWindowTitle(f"调整起止时间 · 第 {row + 1} 条")
-        dialog.resize(560, 290)
+        dialog.resize(700, 330)
         layout = QVBoxLayout(dialog)
-        upper_text = "未限制" if upper is None else f"{upper} ms"
+        upper_text = "未限制" if upper is None else self._format_preview_time(upper)
         note = QLabel(
             "时间围栏："
-            f"开始不得早于 {lower} ms；结束不得晚于 {upper_text}。"
+            f"开始不得早于 {self._format_preview_time(lower)}；结束不得晚于 {upper_text}。"
+            "输入格式为 时:分:秒.毫秒；快捷设置若会造成时间倒置或越过围栏，将提示且不自动修改另一端。"
             "保存后本条会标记为人工定时。"
         )
         note.setWordWrap(True)
@@ -2217,33 +2274,75 @@ class MainWindow(QMainWindow):
         layout.addWidget(note)
         if previous_end is not None or next_start is not None:
             neighbor_note = QLabel(
-                f"上一条结束：{previous_end if previous_end is not None else '—'} ms；"
-                f"下一条开始：{next_start if next_start is not None else '—'} ms"
+                "上一条结束："
+                f"{self._format_preview_time(previous_end) if previous_end is not None else '—'}；"
+                "下一条开始："
+                f"{self._format_preview_time(next_start) if next_start is not None else '—'}"
             )
             neighbor_note.setObjectName("mutedLabel")
             layout.addWidget(neighbor_note)
         form = QFormLayout()
-        start_spin = QSpinBox()
-        end_spin = QSpinBox()
-        limit = self._timing_upper_limit()
-        start_spin.setRange(0, limit)
-        end_spin.setRange(0, limit)
-        start_spin.setSuffix(" ms")
-        end_spin.setSuffix(" ms")
-        start_spin.setValue(start)
-        end_spin.setValue(end)
-        form.addRow("开始时间", start_spin)
-        form.addRow("结束时间", end_spin)
+        start_edit = QLineEdit(self._format_preview_time(start))
+        end_edit = QLineEdit(self._format_preview_time(end))
+        start_edit.setObjectName("startTimeEdit")
+        end_edit.setObjectName("endTimeEdit")
+        start_edit.setPlaceholderText("HH:MM:SS.mmm")
+        end_edit.setPlaceholderText("HH:MM:SS.mmm")
+        start_edit.setToolTip("格式：时:分:秒.毫秒，例如 00:01:23.456")
+        end_edit.setToolTip("格式：时:分:秒.毫秒，例如 00:01:25.000")
+        start_row = QWidget(dialog)
+        start_row_layout = QHBoxLayout(start_row)
+        start_row_layout.setContentsMargins(0, 0, 0, 0)
+        start_row_layout.addWidget(start_edit, 1)
+        previous_button = QPushButton("上条结束时间")
+        previous_button.setObjectName("previousEndTimeButton")
+        previous_button.setEnabled(previous_end is not None)
+        previous_button.setToolTip("将开始时间设为上一条结束时间后 1 毫秒")
+        previous_button.clicked.connect(
+            lambda: self._apply_adjacent_timing_boundary(
+                row, set_start=True, start_edit=start_edit, end_edit=end_edit
+            )
+        )
+        start_row_layout.addWidget(previous_button)
+
+        end_row = QWidget(dialog)
+        end_row_layout = QHBoxLayout(end_row)
+        end_row_layout.setContentsMargins(0, 0, 0, 0)
+        end_row_layout.addWidget(end_edit, 1)
+        next_button = QPushButton("下条开始时间")
+        next_button.setObjectName("nextStartTimeButton")
+        next_button.setEnabled(next_start is not None)
+        next_button.setToolTip("将结束时间设为下一条开始时间前 1 毫秒")
+        next_button.clicked.connect(
+            lambda: self._apply_adjacent_timing_boundary(
+                row, set_start=False, start_edit=start_edit, end_edit=end_edit
+            )
+        )
+        end_row_layout.addWidget(next_button)
+        form.addRow("开始时间", start_row)
+        form.addRow("结束时间", end_row)
         layout.addLayout(form)
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel
         )
-        buttons.accepted.connect(dialog.accept)
+
+        def save_timing() -> None:
+            start_ms = self._parse_timecode_milliseconds(start_edit.text())
+            end_ms = self._parse_timecode_milliseconds(end_edit.text())
+            if start_ms is None or end_ms is None:
+                QMessageBox.warning(
+                    dialog,
+                    "时间格式错误",
+                    "起止时间格式应为 时:分:秒.毫秒，例如 00:01:23.456。",
+                )
+                return
+            if self._save_manual_entry_timing(row, start_ms, end_ms):
+                dialog.accept()
+
+        buttons.accepted.connect(save_timing)
         buttons.rejected.connect(dialog.reject)
         layout.addWidget(buttons)
-        if dialog.exec() != QDialog.DialogCode.Accepted:
-            return
-        self._save_manual_entry_timing(row, start_spin.value(), end_spin.value())
+        dialog.exec()
 
     def _insertion_timing_fence(self, index: int) -> tuple[int, int | None, int | None, int | None]:
         previous_end = self.project.entries[index - 1].effective_end_ms if index > 0 else None
@@ -2745,8 +2844,12 @@ class MainWindow(QMainWindow):
             if shifted:
                 start = None if start is None else max(0, start + self.project.settings.offset_ms)
                 end = None if end is None else max(0, end + self.project.settings.offset_ms)
-            start_text = "" if start is None else format_srt_time(start) if shifted else str(start)
-            end_text = "" if end is None else format_srt_time(end) if shifted else str(end)
+            start_text = (
+                "" if start is None else self._format_preview_time(start) if shifted else str(start)
+            )
+            end_text = (
+                "" if end is None else self._format_preview_time(end) if shifted else str(end)
+            )
             if review_table:
                 translation = entry.translation_text or "（未翻译；双击可手动填写）"
                 values = [str(row + 1), entry.text, translation, start_text, end_text, status]

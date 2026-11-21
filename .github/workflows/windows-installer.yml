@@ -1,0 +1,119 @@
+name: Windows x64 installer
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install project and build dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[dev]'
+      - name: Run tests and lint
+        shell: pwsh
+        run: |
+          $env:QT_QPA_PLATFORM = 'offscreen'
+          python -m pytest -q
+          python -m ruff check src tests
+          python -m ruff format --check src tests
+      - name: Build frozen application directory
+        shell: pwsh
+        run: |
+          $root = (Get-Location).Path
+          $dist = Join-Path $root 'dist\LyraSub'
+          $build = Join-Path $root 'build-win'
+          $spec = Join-Path $root 'build-spec'
+          New-Item -ItemType Directory -Force -Path (Join-Path $root 'dist') | Out-Null
+          python -m PyInstaller --noconfirm --clean --windowed --name LyraSub `
+            --paths (Join-Path $root 'src') --distpath (Join-Path $root 'dist') `
+            --workpath $build --specpath $spec --collect-all opencc `
+            --exclude-module faster_whisper --exclude-module ctranslate2 `
+            --exclude-module onnxruntime --exclude-module av --exclude-module tokenizers `
+            --exclude-module huggingface_hub --exclude-module numpy `
+            (Join-Path $root 'run_lyrasub.py')
+          $site = python -c "import site; print(site.getsitepackages()[0])"
+          $runtime = Join-Path $dist '_internal'
+          $packages = @('faster_whisper','ctranslate2','onnxruntime','av','tokenizers',
+            'huggingface_hub','hf_xet','filelock','fsspec','tqdm','httpx','httpcore',
+            'anyio','h11','click','numpy','yaml','typing_extensions','platformdirs',
+            'packaging','opencc','numpy.libs','av.libs')
+          foreach ($package in $packages) {
+            $source = Join-Path $site $package
+            if (Test-Path $source) {
+              Copy-Item -Path $source -Destination $runtime -Recurse -Force
+            }
+          }
+          if (-not (Test-Path (Join-Path $runtime 'opencc'))) {
+            throw 'OpenCC is missing from the frozen application directory.'
+          }
+          python -c "import sys; sys.path.insert(0, r'$runtime'); from opencc import OpenCC; assert OpenCC('t2s').convert('繁體中文測試') == '繁体中文测试'"
+          @'
+          {
+            "product": "LyraSub",
+            "display_name": "弦字幕 Plus（LyraSub Plus）",
+            "version": "v261121A",
+            "build_revision": 1,
+            "baseline": false,
+            "release_note": "LyraSub Plus：校对导出时间输入统一为 HH:MM:SS.mmm，增加相邻字幕 1 毫秒边界快捷设置及越界保护。",
+            "update_channel": "stable",
+            "models_location": "%LOCALAPPDATA%\\LyraSub\\models"
+          }
+          '@ | Set-Content -Encoding utf8 (Join-Path $dist 'release-manifest.json')
+      - name: Install NSIS
+        shell: pwsh
+        run: choco install nsis --yes --no-progress
+      - name: Build and validate installer
+        shell: pwsh
+        run: |
+          $root = (Get-Location).Path
+          $installer = Join-Path $root 'release\261121A_LyraSub-Plus-setup.exe'
+          New-Item -ItemType Directory -Force -Path (Split-Path $installer) | Out-Null
+          Push-Location (Join-Path $root 'installer')
+          & 'C:\Program Files (x86)\NSIS\makensis.exe' 'setup.nsi'
+          $nsisExitCode = $LASTEXITCODE
+          Pop-Location
+          if ($nsisExitCode -ne 0) { throw 'NSIS installer build failed.' }
+          if (-not (Test-Path $installer)) { throw 'NSIS did not create the expected installer.' }
+          $bytes = [IO.File]::ReadAllBytes($installer)
+          if ($bytes.Length -lt 1000000 -or $bytes[0] -ne 0x4D -or $bytes[1] -ne 0x5A) {
+            throw 'Installer is not a valid Windows PE executable or is unexpectedly small.'
+          }
+          $installDir = Join-Path $env:RUNNER_TEMP 'LyraSub-install-test'
+          Start-Process -FilePath $installer -ArgumentList @('/S', "/D=$installDir") -Wait
+          $app = Join-Path $installDir 'LyraSub.exe'
+          if (-not (Test-Path $app)) { throw 'Silent install did not create LyraSub.exe.' }
+          $manifestPath = Join-Path $installDir 'release-manifest.json'
+          $manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
+          if ($manifest.version -ne 'v261121A' -or $manifest.build_revision -ne 1) {
+            throw 'Installed manifest version/revision mismatch.'
+          }
+          $process = Start-Process -FilePath $app -PassThru
+          Start-Sleep -Seconds 12
+          $process.Refresh()
+          if ($process.HasExited) { throw "Installed app exited during startup (code $($process.ExitCode))." }
+          Stop-Process -Id $process.Id -Force
+          Get-FileHash $installer -Algorithm SHA256 | Format-List
+      - name: Upload temporary build artifact (not a GitHub Release)
+        uses: actions/upload-artifact@v4
+        with:
+          name: v261121A-windows-x64-installer
+          path: |
+            release/261121A_LyraSub-Plus-setup.exe
+            dist/LyraSub/release-manifest.json
+          if-no-files-found: error
+          retention-days: 14
