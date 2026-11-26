@@ -55,7 +55,9 @@ jobs:
           foreach ($package in $packages) {
             $source = Join-Path $site $package
             if (Test-Path $source) {
-              Copy-Item -Path $source -Destination $runtime -Recurse -Force
+              $destination = Join-Path $runtime $package
+              New-Item -ItemType Directory -Force -Path $destination | Out-Null
+              Copy-Item -Path (Join-Path $source '*') -Destination $destination -Recurse -Force
             }
           }
           if (-not (Test-Path (Join-Path $runtime 'opencc'))) {
