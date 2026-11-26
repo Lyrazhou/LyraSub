@@ -75,9 +75,13 @@ jobs:
           }
           '@ | Set-Content -Encoding utf8 (Join-Path $dist 'release-manifest.json')
           $frozenApp = Join-Path $dist 'LyraSub.exe'
+          $frozenDiagnostic = Join-Path $env:RUNNER_TEMP 'lyrasub-frozen-runtime-error.txt'
+          Remove-Item $frozenDiagnostic -Force -ErrorAction SilentlyContinue
+          $env:LYRASUB_RUNTIME_DIAGNOSTIC_FILE = $frozenDiagnostic
           $frozenCheck = Start-Process -FilePath $frozenApp -ArgumentList '--diagnose-recognition-runtime' -Wait -PassThru
           if ($frozenCheck.ExitCode -ne 0) {
-            throw "Frozen recognition runtime self-check failed with exit code $($frozenCheck.ExitCode)."
+            $details = if (Test-Path $frozenDiagnostic) { Get-Content $frozenDiagnostic -Raw } else { 'No diagnostic file was produced.' }
+            throw "Frozen recognition runtime self-check failed with exit code $($frozenCheck.ExitCode): $details"
           }
       - name: Install NSIS
         shell: pwsh
@@ -107,9 +111,13 @@ jobs:
           if ($manifest.version -ne 'v261126A' -or $manifest.build_revision -ne 1) {
             throw 'Installed manifest version/revision mismatch.'
           }
+          $installedDiagnostic = Join-Path $env:RUNNER_TEMP 'lyrasub-installed-runtime-error.txt'
+          Remove-Item $installedDiagnostic -Force -ErrorAction SilentlyContinue
+          $env:LYRASUB_RUNTIME_DIAGNOSTIC_FILE = $installedDiagnostic
           $runtimeCheck = Start-Process -FilePath $app -ArgumentList '--diagnose-recognition-runtime' -Wait -PassThru
           if ($runtimeCheck.ExitCode -ne 0) {
-            throw "Installed recognition runtime self-check failed with exit code $($runtimeCheck.ExitCode). The installer will not be uploaded."
+            $details = if (Test-Path $installedDiagnostic) { Get-Content $installedDiagnostic -Raw } else { 'No diagnostic file was produced.' }
+            throw "Installed recognition runtime self-check failed with exit code $($runtimeCheck.ExitCode): $details The installer will not be uploaded."
           }
           $process = Start-Process -FilePath $app -PassThru
           Start-Sleep -Seconds 12

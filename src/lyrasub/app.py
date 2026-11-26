@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import os
 import sys
+from pathlib import Path
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
@@ -92,10 +94,12 @@ def _recognition_runtime_self_check() -> int:
         import onnxruntime  # type: ignore[import-not-found]  # noqa: F401
         from faster_whisper import WhisperModel  # type: ignore[import-not-found]  # noqa: F401
     except Exception as exc:
-        print(
-            f"Recognition runtime self-check failed: {type(exc).__name__}: {exc}",
-            file=sys.stderr,
-        )
+        message = f"Recognition runtime self-check failed: {type(exc).__name__}: {exc}"
+        diagnostic_file = os.environ.get("LYRASUB_RUNTIME_DIAGNOSTIC_FILE")
+        if diagnostic_file:
+            Path(diagnostic_file).write_text(message, encoding="utf-8")
+        if sys.stderr is not None:
+            print(message, file=sys.stderr)
         return 2
     print("Recognition runtime self-check passed.")
     return 0
