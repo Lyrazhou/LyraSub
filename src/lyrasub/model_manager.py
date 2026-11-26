@@ -7,6 +7,7 @@ import importlib.util
 import os
 import shutil
 import subprocess
+import sys
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -142,6 +143,17 @@ class ModelManager:
             return []
 
         directories: list[Path] = []
+        # PyInstaller's onedir build stores the copied wheels in _internal.
+        # Windows 3.8+ does not search that tree for transitive DLLs unless the
+        # wheel package directories are explicitly registered before importing
+        # native extensions (notably CTranslate2).
+        bundle_root = Path(getattr(sys, "_MEIPASS", Path(sys.executable).parent))
+        directories.append(bundle_root)
+        for package in ("ctranslate2", "av", "numpy.libs", "av.libs", "ctranslate2.libs"):
+            package_dir = bundle_root / package
+            if package_dir.is_dir():
+                directories.append(package_dir)
+
         program_files = Path(os.environ.get("ProgramFiles", r"C:\Program Files"))
         cuda_root = program_files / "NVIDIA GPU Computing Toolkit" / "CUDA"
         if cuda_root.is_dir():
@@ -626,10 +638,16 @@ class ModelManager:
         status: Callable[[str], None] | None = None,
     ) -> tuple[object, str, str, str | None]:
         """Load only an explicitly downloaded local model; never initiate hidden network I/O."""
+        # Register bundled and system native-runtime directories before importing
+        # faster-whisper: its import loads the CTranslate2 .pyd and dependent DLLs.
+        self._register_runtime_dll_directories()
         try:
             from faster_whisper import WhisperModel  # type: ignore[import-not-found]
-        except ImportError as exc:
-            raise RuntimeError("本机缺少识别运行组件，请先安装最新 LyraSub-patch.exe。") from exc
+        except Exception as exc:
+            raise RuntimeError(
+                "本机识别运行组件导入失败。可能是识别依赖文件缺失，或 Windows 无法加载其 DLL。\n"
+                f"原始错误：{type(exc).__name__}: {exc}"
+            ) from exc
 
         preset = self.preset(preset_id)
         if not self.is_model_downloaded(preset_id):

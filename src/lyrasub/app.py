@@ -83,13 +83,21 @@ QCheckBox::indicator:checked { background: #2e91b5; border-color: #5cc0e2; }
 def _recognition_runtime_self_check() -> int:
     """Return a process status for installer verification without opening the UI."""
     try:
+        from .model_manager import ModelManager
+
+        ModelManager._register_runtime_dll_directories()
         import av  # type: ignore[import-not-found]  # noqa: F401
         import ctranslate2  # type: ignore[import-not-found]  # noqa: F401
         import numpy  # type: ignore[import-not-found]  # noqa: F401
         import onnxruntime  # type: ignore[import-not-found]  # noqa: F401
         from faster_whisper import WhisperModel  # type: ignore[import-not-found]  # noqa: F401
-    except Exception:
+    except Exception as exc:
+        print(
+            f"Recognition runtime self-check failed: {type(exc).__name__}: {exc}",
+            file=sys.stderr,
+        )
         return 2
+    print("Recognition runtime self-check passed.")
     return 0
 
 

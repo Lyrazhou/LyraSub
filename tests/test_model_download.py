@@ -108,6 +108,31 @@ def test_local_loading_never_starts_hidden_download(tmp_path: Path) -> None:
         manager.ensure_whisper_model("small", ProcessingDevice.CPU)
 
 
+def test_recognition_import_failure_preserves_native_runtime_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import builtins
+
+    manager = ModelManager(root=tmp_path / "models")
+    registration_calls: list[bool] = []
+    monkeypatch.setattr(
+        ModelManager,
+        "_register_runtime_dll_directories",
+        staticmethod(lambda: (registration_calls.append(True) or [], [])),
+    )
+    original_import = builtins.__import__
+
+    def fail_faster_whisper(name, *args, **kwargs):
+        if name == "faster_whisper":
+            raise ImportError("DLL load failed while importing _ext")
+        return original_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", fail_faster_whisper)
+    with pytest.raises(RuntimeError, match="DLL load failed while importing _ext"):
+        manager.ensure_whisper_model("small", ProcessingDevice.CPU)
+    assert registration_calls == [True]
+
+
 def test_custom_source_requires_https(tmp_path: Path) -> None:
     manager = ModelManager(root=tmp_path / "models")
     with pytest.raises(ValueError, match="https"):

@@ -10,8 +10,8 @@ APP_DISPLAY_NAME = f"{APP_NAME_ZH}（{APP_NAME_EN}）"
 APP_ID = "com.lyrastudio.lyrasub"
 
 # The release process freezes this value into the build manifest.
-# v261121A adds millisecond-precise review timing inputs and boundary shortcuts.
-VERSION = "v261121A"
+# v261126A fixes Windows recognition-runtime DLL registration and validation.
+VERSION = "v261126A"
 VERSION_FORMAT = "vYYMMDD + optional A–Z / AA… same-day revision"
 
 ABOUT_PRODUCER = "本工具由天琴工作室（Lyra Studio）出品 · 海舟（Lyrazhou）制作"

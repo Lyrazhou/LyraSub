@@ -40,7 +40,7 @@ wine "$WIN_PYTHON" -m PyInstaller \
 RUNTIME_SITE="$WINEPREFIX/drive_c/LyraPython312/Lib/site-packages"
 RUNTIME_TARGET="$ROOT/dist/LyraSub/_internal"
 for package in \
-  faster_whisper ctranslate2 onnxruntime av tokenizers huggingface_hub \
+  faster_whisper ctranslate2 ctranslate2-4.9.0.dist-info onnxruntime av tokenizers huggingface_hub \
   hf_xet filelock fsspec tqdm httpx httpcore anyio h11 click \
   numpy yaml typing_extensions platformdirs packaging opencc numpy.libs av.libs; do
   if [[ -e "$RUNTIME_SITE/$package" ]]; then
@@ -56,15 +56,16 @@ if grep -q "missing module named opencc" "$ROOT/build-win/LyraSub/warn-LyraSub.t
 fi
 wine "$WIN_PYTHON" -c "import sys; sys.path.insert(0, r'${WIN_DIST}\\LyraSub\\_internal'); from opencc import OpenCC; result = OpenCC('t2s').convert('繁體中文測試'); assert result == '繁体中文测试', result; print('Bundled OpenCC verification passed:', result)"
 wine "$WIN_PYTHON" -c "import sys; sys.path.insert(0, r'${WIN_DIST}\\LyraSub\\_internal'); import wave,tempfile,pathlib,av; from faster_whisper.audio import decode_audio; p=pathlib.Path(tempfile.gettempdir())/'lyrasub_build_probe.wav'; w=wave.open(str(p),'wb'); w.setnchannels(1); w.setsampwidth(2); w.setframerate(16000); w.writeframes(b'\\0\\0'*1600); w.close(); samples=decode_audio(str(p),sampling_rate=16000); assert len(samples)==1600, len(samples); print('Bundled faster-whisper/PyAV decode verification passed:', av.__version__, len(samples))"
+wine "${WIN_DIST}\\LyraSub\\LyraSub.exe" --diagnose-recognition-runtime
 
 cat > "$ROOT/dist/LyraSub/release-manifest.json" <<'JSON'
 {
   "product": "LyraSub",
   "display_name": "弦字幕 Plus（LyraSub Plus）",
-  "version": "v261121A",
+  "version": "v261126A",
   "build_revision": 1,
   "baseline": false,
-  "release_note": "LyraSub Plus：校对导出时间输入统一为 HH:MM:SS.mmm，增加相邻字幕 1 毫秒边界快捷设置及越界保护。",
+  "release_note": "LyraSub Plus：修复识别运行组件加载并增加安装后识别组件自检。",
   "update_channel": "stable",
   "models_location": "%LOCALAPPDATA%\\LyraSub\\models"
 }

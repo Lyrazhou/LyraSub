@@ -66,14 +66,19 @@ jobs:
           {
             "product": "LyraSub",
             "display_name": "弦字幕 Plus（LyraSub Plus）",
-            "version": "v261121A",
+            "version": "v261126A",
             "build_revision": 1,
             "baseline": false,
-            "release_note": "LyraSub Plus：校对导出时间输入统一为 HH:MM:SS.mmm，增加相邻字幕 1 毫秒边界快捷设置及越界保护。",
+            "release_note": "LyraSub Plus：修复识别运行组件加载并增加安装后识别组件自检。",
             "update_channel": "stable",
             "models_location": "%LOCALAPPDATA%\\LyraSub\\models"
           }
           '@ | Set-Content -Encoding utf8 (Join-Path $dist 'release-manifest.json')
+          $frozenApp = Join-Path $dist 'LyraSub.exe'
+          $frozenCheck = Start-Process -FilePath $frozenApp -ArgumentList '--diagnose-recognition-runtime' -Wait -PassThru
+          if ($frozenCheck.ExitCode -ne 0) {
+            throw "Frozen recognition runtime self-check failed with exit code $($frozenCheck.ExitCode)."
+          }
       - name: Install NSIS
         shell: pwsh
         run: choco install nsis --yes --no-progress
@@ -81,7 +86,7 @@ jobs:
         shell: pwsh
         run: |
           $root = (Get-Location).Path
-          $installer = Join-Path $root 'release\261121A_LyraSub-Plus-setup.exe'
+          $installer = Join-Path $root 'release\261126A_LyraSub-Plus-setup.exe'
           New-Item -ItemType Directory -Force -Path (Split-Path $installer) | Out-Null
           Push-Location (Join-Path $root 'installer')
           & 'C:\Program Files (x86)\NSIS\makensis.exe' 'setup.nsi'
@@ -99,8 +104,12 @@ jobs:
           if (-not (Test-Path $app)) { throw 'Silent install did not create LyraSub.exe.' }
           $manifestPath = Join-Path $installDir 'release-manifest.json'
           $manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
-          if ($manifest.version -ne 'v261121A' -or $manifest.build_revision -ne 1) {
+          if ($manifest.version -ne 'v261126A' -or $manifest.build_revision -ne 1) {
             throw 'Installed manifest version/revision mismatch.'
+          }
+          $runtimeCheck = Start-Process -FilePath $app -ArgumentList '--diagnose-recognition-runtime' -Wait -PassThru
+          if ($runtimeCheck.ExitCode -ne 0) {
+            throw "Installed recognition runtime self-check failed with exit code $($runtimeCheck.ExitCode). The installer will not be uploaded."
           }
           $process = Start-Process -FilePath $app -PassThru
           Start-Sleep -Seconds 12
@@ -111,9 +120,9 @@ jobs:
       - name: Upload temporary build artifact (not a GitHub Release)
         uses: actions/upload-artifact@v4
         with:
-          name: v261121A-windows-x64-installer
+          name: v261126A-windows-x64-installer
           path: |
-            release/261121A_LyraSub-Plus-setup.exe
+            release/261126A_LyraSub-Plus-setup.exe
             dist/LyraSub/release-manifest.json
           if-no-files-found: error
           retention-days: 14

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lyrasub"
-version = "261121"
+version = "261126"
 description = "弦字幕（LyraSub）— 面向影视字幕制作的本地时间轴转写工具"
 requires-python = ">=3.11,<3.14"
 dependencies = [

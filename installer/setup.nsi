@@ -6,12 +6,12 @@ SetCompressor /SOLID lzma
 !include "LogicLib.nsh"
 
 !define PRODUCT_NAME "弦字幕 Plus（LyraSub Plus）"
-!define PRODUCT_VERSION "v261121A (Build 1)"
+!define PRODUCT_VERSION "v261126A (Build 1)"
 !define PRODUCT_PUBLISHER "天琴工作室（Lyra Studio）"
 !define PRODUCT_EXE "LyraSub.exe"
 
 Name "${PRODUCT_NAME} ${PRODUCT_VERSION}"
-OutFile "..\release\261121A_LyraSub-Plus-setup.exe"
+OutFile "..\release\261126A_LyraSub-Plus-setup.exe"
 InstallDir "$LOCALAPPDATA\LyraSub"
 InstallDirRegKey HKCU "Software\LyraStudio\LyraSub" "InstallDir"
 ShowInstDetails show

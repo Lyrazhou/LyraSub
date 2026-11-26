@@ -34,7 +34,7 @@ def test_main_window_builds_at_design_size() -> None:
     assert window.width() == 1600
     assert window.height() == 900
     assert "弦字幕 Plus（LyraSub Plus）" in window.windowTitle()
-    assert "v261121A" in window.windowTitle()
+    assert "v261126A" in window.windowTitle()
     assert window.nav.count() == 6
     assert window.pages.count() == 6
     assert "导入媒体" in window.nav.item(0).text()
