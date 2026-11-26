@@ -46,20 +46,34 @@ jobs:
             --exclude-module onnxruntime --exclude-module av --exclude-module tokenizers `
             --exclude-module huggingface_hub --exclude-module numpy `
             (Join-Path $root 'run_lyrasub.py')
-          $site = python -c "import site; print(site.getsitepackages()[0])"
           $runtime = Join-Path $dist '_internal'
-          $packages = @('faster_whisper','ctranslate2','onnxruntime','av','tokenizers',
-            'huggingface_hub','hf_xet','filelock','fsspec','tqdm','httpx','httpcore',
-            'anyio','h11','click','numpy','yaml','typing_extensions','platformdirs',
-            'packaging','opencc','numpy.libs','av.libs')
-          foreach ($package in $packages) {
-            $source = Join-Path $site $package
-            if (Test-Path $source) {
-              $destination = Join-Path $runtime $package
-              New-Item -ItemType Directory -Force -Path $destination | Out-Null
-              Copy-Item -Path (Join-Path $source '*') -Destination $destination -Recurse -Force
-            }
-          }
+          $env:LYRASUB_FROZEN_RUNTIME = $runtime
+          @'
+          import os
+          import shutil
+          import site
+          from pathlib import Path
+
+          site_packages = Path(site.getsitepackages()[0])
+          runtime = Path(os.environ['LYRASUB_FROZEN_RUNTIME'])
+          packages = (
+              'faster_whisper', 'ctranslate2', 'onnxruntime', 'av', 'tokenizers',
+              'huggingface_hub', 'hf_xet', 'filelock', 'fsspec', 'tqdm', 'httpx', 'httpcore',
+              'anyio', 'h11', 'click', 'numpy', 'yaml', 'typing_extensions', 'platformdirs',
+              'packaging', 'opencc', 'numpy.libs', 'av.libs',
+          )
+          required = {'faster_whisper', 'ctranslate2', 'av', 'tokenizers'}
+          for package in packages:
+              source = site_packages / package
+              if not source.exists():
+                  if package in required:
+                      raise SystemExit(f'Required source package missing: {source}')
+                  continue
+              destination = runtime / package
+              shutil.copytree(source, destination, dirs_exist_ok=True)
+              print(f'Copied {package}: {source} -> {destination}')
+          '@ | python -
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to copy ASR runtime packages.' }
           if (-not (Test-Path (Join-Path $runtime 'opencc'))) {
             throw 'OpenCC is missing from the frozen application directory.'
           }
