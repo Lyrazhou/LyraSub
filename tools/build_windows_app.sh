@@ -62,10 +62,10 @@ cat > "$ROOT/dist/LyraSub/release-manifest.json" <<'JSON'
 {
   "product": "LyraSub",
   "display_name": "弦字幕 Plus（LyraSub Plus）",
-  "version": "v261126A",
+  "version": "v261127A",
   "build_revision": 1,
   "baseline": false,
-  "release_note": "LyraSub Plus：修复识别运行组件加载并增加安装后识别组件自检。",
+  "release_note": "LyraSub Plus：修复 NSIS 安装器中文字与快捷方式名称乱码。",
   "update_channel": "stable",
   "models_location": "%LOCALAPPDATA%\\LyraSub\\models"
 }

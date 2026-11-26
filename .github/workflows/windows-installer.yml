@@ -39,6 +39,10 @@ jobs:
           $build = Join-Path $root 'build-win'
           $spec = Join-Path $root 'build-spec'
           New-Item -ItemType Directory -Force -Path (Join-Path $root 'dist') | Out-Null
+          $nsiBytes = [IO.File]::ReadAllBytes((Join-Path $root 'installer\setup.nsi'))
+          if ($nsiBytes.Length -lt 3 -or $nsiBytes[0] -ne 0xEF -or $nsiBytes[1] -ne 0xBB -or $nsiBytes[2] -ne 0xBF) {
+            throw 'installer/setup.nsi must be UTF-8 with BOM so NSIS reads Chinese labels correctly.'
+          }
           python -m PyInstaller --noconfirm --clean --windowed --name LyraSub `
             --paths (Join-Path $root 'src') --distpath (Join-Path $root 'dist') `
             --workpath $build --specpath $spec --collect-all opencc `
@@ -95,10 +99,10 @@ jobs:
           {
             "product": "LyraSub",
             "display_name": "弦字幕 Plus（LyraSub Plus）",
-            "version": "v261126A",
+            "version": "v261127A",
             "build_revision": 1,
             "baseline": false,
-            "release_note": "LyraSub Plus：修复识别运行组件加载并增加安装后识别组件自检。",
+            "release_note": "LyraSub Plus：修复 NSIS 安装器中文字与快捷方式名称乱码。",
             "update_channel": "stable",
             "models_location": "%LOCALAPPDATA%\\LyraSub\\models"
           }
@@ -119,7 +123,7 @@ jobs:
         shell: pwsh
         run: |
           $root = (Get-Location).Path
-          $installer = Join-Path $root 'release\261126A_LyraSub-Plus-setup.exe'
+          $installer = Join-Path $root 'release\261127A_LyraSub-Plus-setup.exe'
           New-Item -ItemType Directory -Force -Path (Split-Path $installer) | Out-Null
           $makensisPath = (Get-Command 'makensis.exe' -ErrorAction SilentlyContinue).Source
           if (-not $makensisPath) {
@@ -152,9 +156,16 @@ jobs:
           if (-not (Test-Path $app)) { throw 'Silent install did not create LyraSub.exe.' }
           $manifestPath = Join-Path $installDir 'release-manifest.json'
           $manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
-          if ($manifest.version -ne 'v261126A' -or $manifest.build_revision -ne 1) {
+          if ($manifest.version -ne 'v261127A' -or $manifest.build_revision -ne 1) {
             throw 'Installed manifest version/revision mismatch.'
           }
+          $expectedShortcut = '弦字幕 Plus（LyraSub Plus）.lnk'
+          $startMenuShortcut = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\LyraSub\$expectedShortcut"
+          $desktopShortcut = Join-Path ([Environment]::GetFolderPath('Desktop')) $expectedShortcut
+          if (-not (Test-Path $startMenuShortcut)) { throw "Chinese Start Menu shortcut missing: $startMenuShortcut" }
+          if (-not (Test-Path $desktopShortcut)) { throw "Chinese Desktop shortcut missing: $desktopShortcut" }
+          $uninstallName = (Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\LyraSub').DisplayName
+          if ($uninstallName -notlike '弦字幕 Plus（LyraSub Plus）*') { throw "Uninstall display name is garbled or incorrect: $uninstallName" }
           $installedDiagnostic = Join-Path $env:RUNNER_TEMP 'lyrasub-installed-runtime-error.txt'
           Remove-Item $installedDiagnostic -Force -ErrorAction SilentlyContinue
           $env:LYRASUB_RUNTIME_DIAGNOSTIC_FILE = $installedDiagnostic
@@ -172,9 +183,9 @@ jobs:
       - name: Upload temporary build artifact (not a GitHub Release)
         uses: actions/upload-artifact@v4
         with:
-          name: v261126A-windows-x64-installer
+          name: v261127A-windows-x64-installer
           path: |
-            release/261126A_LyraSub-Plus-setup.exe
+            release/261127A_LyraSub-Plus-setup.exe
             dist/LyraSub/release-manifest.json
           if-no-files-found: error
           retention-days: 14

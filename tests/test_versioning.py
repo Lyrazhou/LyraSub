@@ -1,8 +1,22 @@
 from datetime import date
+from pathlib import Path
 
 import pytest
 
 from lyrasub.versioning import alphabetic_revision, dated_version
+
+
+def test_nsis_installer_source_uses_utf8_bom_and_chinese_names() -> None:
+    installer = Path(__file__).parents[1] / "installer" / "setup.nsi"
+    content = installer.read_bytes()
+    assert content.startswith(b"\xef\xbb\xbf")
+    decoded = content.decode("utf-8-sig")
+    assert "Unicode true" in decoded
+    assert "弦字幕 Plus（LyraSub Plus）" in decoded
+    assert 'Name "${PRODUCT_NAME} ${PRODUCT_VERSION}"' in decoded
+    assert 'CreateShortcut "$SMPROGRAMS\\LyraSub\\弦字幕 Plus（LyraSub Plus）.lnk"' in decoded
+    assert 'CreateShortcut "$DESKTOP\\弦字幕 Plus（LyraSub Plus）.lnk"' in decoded
+    assert '"DisplayName" "${PRODUCT_NAME} ${PRODUCT_VERSION}"' in decoded
 
 
 @pytest.mark.parametrize(

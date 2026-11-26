@@ -1,4 +1,4 @@
-Unicode true
+﻿Unicode true
 RequestExecutionLevel user
 SetCompressor /SOLID lzma
 
@@ -6,12 +6,12 @@ SetCompressor /SOLID lzma
 !include "LogicLib.nsh"
 
 !define PRODUCT_NAME "弦字幕 Plus（LyraSub Plus）"
-!define PRODUCT_VERSION "v261126A (Build 1)"
+!define PRODUCT_VERSION "v261127A (Build 1)"
 !define PRODUCT_PUBLISHER "天琴工作室（Lyra Studio）"
 !define PRODUCT_EXE "LyraSub.exe"
 
 Name "${PRODUCT_NAME} ${PRODUCT_VERSION}"
-OutFile "..\release\261126A_LyraSub-Plus-setup.exe"
+OutFile "..\release\261127A_LyraSub-Plus-setup.exe"
 InstallDir "$LOCALAPPDATA\LyraSub"
 InstallDirRegKey HKCU "Software\LyraStudio\LyraSub" "InstallDir"
 ShowInstDetails show
@@ -36,8 +36,10 @@ Section "安装弦字幕 Plus（LyraSub Plus）" SEC_MAIN
   ; Plus deliberately reuses the standard edition's install directory and
   ; registry location. Remove only old shortcuts; user models/configuration
   ; stay under the same current-user data locations.
-  Delete "$SMPROGRAMS\LyraSub\弦字幕（LyraSub）.lnk"
-  Delete "$DESKTOP\弦字幕（LyraSub）.lnk"
+  ; Clear legacy shortcuts whose Chinese filename bytes were decoded with the
+  ; Windows ANSI code page by older no-BOM NSIS source builds.
+  Delete "$SMPROGRAMS\LyraSub\*.lnk"
+  Delete "$DESKTOP\*LyraSub*.lnk"
 
   WriteRegStr HKCU "Software\LyraStudio\LyraSub" "InstallDir" "$INSTDIR"
   WriteRegStr HKCU "Software\LyraStudio\LyraSub" "Version" "${PRODUCT_VERSION}"
