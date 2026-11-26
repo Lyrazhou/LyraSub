@@ -51,10 +51,10 @@ jobs:
           @'
           import os
           import shutil
-          import site
+          import sysconfig
           from pathlib import Path
 
-          site_packages = Path(site.getsitepackages()[0])
+          site_packages = Path(sysconfig.get_paths()['purelib'])
           runtime = Path(os.environ['LYRASUB_FROZEN_RUNTIME'])
           packages = (
               'faster_whisper', 'ctranslate2', 'onnxruntime', 'av', 'tokenizers',
