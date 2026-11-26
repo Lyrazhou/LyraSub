@@ -121,8 +121,23 @@ jobs:
           $root = (Get-Location).Path
           $installer = Join-Path $root 'release\261126A_LyraSub-Plus-setup.exe'
           New-Item -ItemType Directory -Force -Path (Split-Path $installer) | Out-Null
+          $makensis = Get-Command 'makensis.exe' -ErrorAction SilentlyContinue
+          if (-not $makensis) {
+            $nsisRoots = @(
+              (Join-Path $env:ProgramFiles 'NSIS'),
+              (Join-Path ${env:ProgramFiles(x86)} 'NSIS'),
+              'C:\ProgramData\chocolatey\lib\nsis'
+            )
+            foreach ($nsisRoot in $nsisRoots) {
+              if (Test-Path $nsisRoot) {
+                $candidate = Get-ChildItem -Path $nsisRoot -Filter 'makensis.exe' -File -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+                if ($candidate) { $makensis = $candidate; break }
+              }
+            }
+          }
+          if (-not $makensis) { throw 'Could not locate makensis.exe after installing NSIS.' }
           Push-Location (Join-Path $root 'installer')
-          & 'C:\Program Files (x86)\NSIS\makensis.exe' 'setup.nsi'
+          & $makensis.Source 'setup.nsi'
           $nsisExitCode = $LASTEXITCODE
           Pop-Location
           if ($nsisExitCode -ne 0) { throw 'NSIS installer build failed.' }
