@@ -137,17 +137,29 @@ class ModelManager:
         self.alignment_root.mkdir(parents=True, exist_ok=True)
 
     @staticmethod
+    def _prepare_frozen_import_paths() -> list[Path]:
+        """Expose PyInstaller's onedir _internal tree to normal Python imports."""
+        bundle_root_value = getattr(sys, "_MEIPASS", None)
+        if not bundle_root_value:
+            return []
+        bundle_root = Path(bundle_root_value)
+        root_text = str(bundle_root)
+        if root_text not in sys.path:
+            sys.path.insert(0, root_text)
+        return [bundle_root]
+
+    @staticmethod
     def _runtime_dll_directories() -> list[Path]:
         """Return trusted CUDA/cuDNN directories for an installed Windows runtime."""
         if os.name != "nt":
             return []
 
-        directories: list[Path] = []
+        directories = ModelManager._prepare_frozen_import_paths()
         # PyInstaller's onedir build stores the copied wheels in _internal.
         # Windows 3.8+ does not search that tree for transitive DLLs unless the
         # wheel package directories are explicitly registered before importing
         # native extensions (notably CTranslate2).
-        bundle_root = Path(getattr(sys, "_MEIPASS", Path(sys.executable).parent))
+        bundle_root = directories[0] if directories else Path(sys.executable).parent
         directories.append(bundle_root)
         for package in ("ctranslate2", "av", "numpy.libs", "av.libs", "ctranslate2.libs"):
             package_dir = bundle_root / package

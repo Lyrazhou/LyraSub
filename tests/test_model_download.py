@@ -133,6 +133,20 @@ def test_recognition_import_failure_preserves_native_runtime_error(
     assert registration_calls == [True]
 
 
+def test_frozen_bundle_root_is_added_to_python_import_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import sys
+
+    bundle_root = tmp_path / "_internal"
+    bundle_root.mkdir()
+    monkeypatch.setattr(sys, "_MEIPASS", str(bundle_root), raising=False)
+    monkeypatch.setattr(sys, "path", list(sys.path))
+
+    assert ModelManager._prepare_frozen_import_paths() == [bundle_root]
+    assert sys.path[0] == str(bundle_root)
+
+
 def test_custom_source_requires_https(tmp_path: Path) -> None:
     manager = ModelManager(root=tmp_path / "models")
     with pytest.raises(ValueError, match="https"):

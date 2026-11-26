@@ -61,6 +61,19 @@ jobs:
           if (-not (Test-Path (Join-Path $runtime 'opencc'))) {
             throw 'OpenCC is missing from the frozen application directory.'
           }
+          $requiredAsrFiles = @(
+            'faster_whisper\transcribe.py',
+            'ctranslate2\_ext.cp312-win_amd64.pyd',
+            'ctranslate2\ctranslate2.dll',
+            'ctranslate2\cudnn64_9.dll',
+            'ctranslate2\libiomp5md.dll',
+            'av\__init__.py',
+            'tokenizers\tokenizers.pyd'
+          )
+          foreach ($relativePath in $requiredAsrFiles) {
+            $requiredFile = Join-Path $runtime $relativePath
+            if (-not (Test-Path $requiredFile)) { throw "Required ASR runtime file missing: $relativePath" }
+          }
           python -c "import sys; sys.path.insert(0, r'$runtime'); from opencc import OpenCC; assert OpenCC('t2s').convert('繁體中文測試') == '繁体中文测试'"
           @'
           {
